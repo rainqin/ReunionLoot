@@ -1,0 +1,17 @@
+## Interface: 11304
+## Title: HelloWorld
+## Notes: Prints "Hello, World" to the chat.
+## Author: YourName
+## Version: 0.0.1
+
+## Interface: 30400
+## Title: Reunion Loot
+## Notes: Fast Gdkp bidding system
+## Author: Raycast
+## Version: 0.1.0
+
+util.lua
+ui.lua
+client.lua
+master.lua
+reunionloot.lua
