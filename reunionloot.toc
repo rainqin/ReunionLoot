@@ -10,6 +10,7 @@
 ## Author: Raycast
 ## Version: 0.1.0
 
+filters.lua
 util.lua
 ui.lua
 client.lua
