@@ -30,10 +30,11 @@ end
 local function CheckItemPassStatus(item_index)
 	local index = tonumber(item_index)
 	local item_info = item_list[index]
-	if #item_info.p_list == REUNIONLOOT.raid_size then
+	local p_list_len = Reunionloot_tablelength(item_info.p_list)
+	if p_list_len == REUNIONLOOT.raid_size then
 		item_info.status = "boughtin"
 		Reunionloot_BroadCastBoughtIn(item_index)
-	elseif #item_info.p_list == REUNIONLOOT.raid_size - 1 and item_info.current_winner ~= "No one bid" then
+	elseif p_list_len == REUNIONLOOT.raid_size - 1 and item_info.current_winner ~= "No one bid" then
 		item_info.status = "deal"
 		Reunionloot_BroadCastDeal(item_index)
 	end
@@ -42,7 +43,7 @@ end
 local function GetPListPerUser()
 	local p_list_per_user = {}
 	for index, item_info in pairs(item_list) do
-		for _, user in pairs(item_info.p_list) do
+		for user, _ in pairs(item_info.p_list) do
 			if p_list_per_user[user] == nil then
 				p_list_per_user[user] = {}
 			end
@@ -94,6 +95,8 @@ end
 
 function Reunionloot_Master_DeleteAll()
 	item_list = {}
+	item_index = 1
+	bidding = false
 	Reunionloot_DeleteAll()
 	Reunionloot_BroadCastDeleteAll()
 end
@@ -159,10 +162,15 @@ local function OnEvent(self, event, prefix, msg, _, _, target, ...)
 		elseif actions[1] == "BroadcastNotify" then
 			SendSystemMessage(actions[2])
 		elseif actions[1] == "PassFromClient" then
-			local item_index = tonumber(actions[2])
-			local player = target
-			table.insert(item_list[item_index].p_list, player)
-			CheckItemPassStatus(item_index)
+			if not bidding then
+				Reunionloot_BroadCastNotifyMessage("Bidding not started yet, please wait.", target)
+			else 
+				local item_index = tonumber(actions[2])
+				local player = target
+				item_list[item_index].p_list[player] = true
+				Reunionloot_ConfirmPass(item_index, player)
+				CheckItemPassStatus(item_index)
+			end
 		elseif actions[1] == "BoughtIn" then
 			local item_index = tonumber(actions[2])
 			item_list[item_index].status = "boughtin"
@@ -174,7 +182,7 @@ local function OnEvent(self, event, prefix, msg, _, _, target, ...)
 			item_info.status = "deal"
 			Reunionloot_DealItem(item_index)
 			SendSystemMessage(item_info.item.link.." Sold to "..item_info.current_winner..
-				" at "..item_info.current_price.."g! Contguratulations!")
+				" at "..item_info.current_price.."g! Congratulations!")
 		end
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		--print("enterring the world");
@@ -192,9 +200,13 @@ function Reunionloot_Master_Window()
 end
 
 function Reunionloot_PassItem_Master(item_index)
+	if not bidding then
+		SendSystemMessage("Bidding not started yet, please wait.")
+		return
+	end
 	local index = tonumber(item_index)
 	item_list[index].passed = true
-	table.insert(item_list[index].p_list, player_name)
+	item_list[index].p_list[player_name] = "true"
 	Reunionloot_PassItem(index)
 	CheckItemPassStatus(item_index)
 end

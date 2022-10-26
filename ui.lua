@@ -12,7 +12,7 @@ local max_page_number = 1
 local Window = {}
 local carry_on_total_gold = 0
 
-local current_filter = Reunionloot_FilterAll
+local current_filter = Reunionloot_FilterNotPassed
 
 function Reunionloot_CreateItemFrame_Client(parent, y_offset)
 	local item_root = backdrop_pool:Acquire()
@@ -119,7 +119,6 @@ function Reunionloot_CreateItemFrame_Client(parent, y_offset)
 	pass_button:SetSize(30, 30)
 	pass_button:SetText("P")
 	pass_button:SetScript("OnClick", function(self)
-		Reunionloot_PassItem_Client(item_index.text:GetText())
 		Reunionloot_ReportPass(item_index.text:GetText())
 	end)
 	pass_button:Show()
@@ -739,7 +738,7 @@ function Window:RefreshItemList(page_number)
 	local slot_index = 1
 	local item_list_index = 1
 	local total_gold = carry_on_total_gold
-	while (item_list_index <= #item_list) do
+	while (item_list_index <= Reunionloot_tablelength(item_list)) do
 		local item_info = item_list[item_list_index]
 		if current_filter(item_info) then
 			local page = math.ceil(slot_index / REUNIONLOOT.item_per_page)

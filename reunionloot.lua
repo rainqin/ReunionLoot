@@ -4,7 +4,7 @@ SLASH_REUNIONLOOTMASTER1 = "/reunionlootmaster"
 REUNIONLOOT = {}
 REUNIONLOOT.prefix = "ReunionLoot"
 REUNIONLOOT.min_bid = 100
-REUNIONLOOT.version = "1.0.0"
+REUNIONLOOT.version = "1.1.0"
 REUNIONLOOT.item_per_page = 11
 REUNIONLOOT.raid_size = 1
 REUNIONLOOT.send_gap = 0.5
@@ -142,6 +142,11 @@ function Reunionloot_ReportPass(item_index)
 	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, msg, "RAID");
 end
 
+function Reunionloot_ConfirmPass(item_index, target)
+	local msg = "ConfirmPass;"..item_index
+	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, msg, "WHISPER", target);
+end
+
 function Reunionloot_BroadCastStartClient()
 	local msg = "ClientStart;"
 	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, msg, "RAID");
@@ -163,7 +168,7 @@ local function OnStandbyEvent(self, event, prefix, msg, _, _, target, ...)
 end
 
 local function Client_Start()
-	SendSystemMessage("Reunionloot V"..REUNIONLOOT.version.."registered")
+	SendSystemMessage("Reunionloot V"..REUNIONLOOT.version.." registered")
 	REUNIONLOOT.client_standby = REUNIONLOOT.client_standby or CreateFrame("Frame", nil, UIParent)
 	REUNIONLOOT.client_standby:SetScript("OnEvent", OnStandbyEvent)
 	REUNIONLOOT.client_standby:RegisterEvent("CHAT_MSG_ADDON");

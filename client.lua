@@ -60,6 +60,9 @@ local function OnEvent(self, event, prefix, msg, _, _, target, ...)
 			item_proto.current_price = bid_price
 			item_proto.current_winner = winner
 			Reunionloot_UpdateItemPrice(bid_index, bid_price, winner)
+		elseif actions[1] == "ConfirmPass" then
+			local item_index = actions[2]
+			Reunionloot_PassItem_Client(item_index)
 		elseif actions[1] == "BroadcastSetPrice" then
 			local bid_index = tonumber(actions[2])
 			local bid_price = tonumber(actions[3])
@@ -102,7 +105,7 @@ local function OnEvent(self, event, prefix, msg, _, _, target, ...)
 			item_info.status = "deal"
 			Reunionloot_DealItem(item_index)
 			SendSystemMessage(item_info.item.link.." Sold to "..item_info.current_winner..
-				" at "..item_info.current_price.."g! Contguratulations!")
+				" at "..item_info.current_price.."g! Congratulations!")
 		end
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		--print("enterring the world");
