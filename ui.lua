@@ -10,6 +10,7 @@ local item_list = {}
 local page_number = 1
 local max_page_number = 1
 local Window = {}
+Window.monitor_label = {}
 local carry_on_total_gold = 0
 
 local current_filter = Reunionloot_FilterNotPassed
@@ -151,18 +152,19 @@ local function Reunionloot_CreateItemFrame_Master(parent, y_offset)
 	item_texture:SetSize(30, 30)
 	item_texture:Show()
 
-	local item_link = item_link_pool:Acquire()
+	local item_link = button_pool:Acquire()
 	item_link:SetParent(item_root)
 	item_link:SetPoint("LEFT", 53, 0)
 	item_link:SetSize(120, 30)
-	item_link.text = item_link.text or item_link:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	item_link.text:SetPoint("LEFT")
+	item_link:HookScript("OnClick", function()
+	  Reunionloot_Master_Monitor_SetItem(tonumber(item_index.text:GetText()))
+	end)
 	item_link:Show()
 
 	item_texture:HookScript("OnEnter", function()
-	  if (item_link and item_link.text:GetText() ~= nil) then
+	  if (item_link and item_link:GetText() ~= nil) then
 	    GameTooltip:SetOwner(item_texture, "ANCHOR_BOTTOMLEFT")
-	    GameTooltip:SetHyperlink(item_link.text:GetText())
+	    GameTooltip:SetHyperlink(item_link:GetText())
 	  end
 	end)
 	item_texture:HookScript("OnLeave", function()
@@ -271,7 +273,7 @@ local function Reunionloot_CreateItemFrame_Master(parent, y_offset)
 	end)
 	delete_button:Show()
 
-	return {item_root = item_root, item_index = item_index.text, item_texture = item_texture, item_link = item_link.text,
+	return {item_root = item_root, item_index = item_index.text, item_texture = item_texture, item_link = item_link,
 		current_price = current_price, current_winner = current_winner.text, input_price = input_price, bid_buttons = {bid = bid_button, pass = pass_button}}
 end
 
@@ -624,7 +626,7 @@ end
 
 function Reunionloot_Main_Window(is_master)
 	local win = Window.win or CreateFrame("Frame","Reunion Loot",UIParent, "BasicFrameTemplateWithInset");
-	win:SetFrameStrata("BACKGROUND")
+	win:SetFrameStrata("DIALOG")
 	win:SetMovable(true)
 	win:EnableMouse(true)
 	win:RegisterForDrag("LeftButton")
@@ -691,8 +693,16 @@ function Reunionloot_Main_Window(is_master)
 			Reunionloot_Master_Start_Bidding()
 		end)
 		start_bid_button:Show()
+		local pause_bid_button = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+		pause_bid_button:SetPoint("BOTTOM", 200, 20)
+		pause_bid_button:SetSize(100, 40)
+		pause_bid_button:SetText("Pause Bid")
+		pause_bid_button:SetScript("OnClick", function(self)
+			Reunionloot_Master_Pause_Bidding()
+		end)
+		pause_bid_button:Show()
 		local end_bid_button = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
-		end_bid_button:SetPoint("BOTTOM", 200, 20)
+		end_bid_button:SetPoint("BOTTOM", 300, 20)
 		end_bid_button:SetSize(100, 40)
 		end_bid_button:SetText("End Bid")
 		end_bid_button:SetScript("OnClick", function(self)
@@ -700,7 +710,7 @@ function Reunionloot_Main_Window(is_master)
 		end)
 		end_bid_button:Show()
 		local end_bid_button = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
-		end_bid_button:SetPoint("BOTTOM", 300, 20)
+		end_bid_button:SetPoint("BOTTOM", 400, 20)
 		end_bid_button:SetSize(100, 40)
 		end_bid_button:SetText("Clear All")
 		end_bid_button:SetScript("OnClick", function(self)
@@ -713,15 +723,135 @@ function Reunionloot_Main_Window(is_master)
 	return win;
 end
 
+function Reunionloot_Master_Monitor_Window()
+	local win = Window.master_monitor or CreateFrame("Frame","Reunion Loot Master Monitor",UIParent, "BasicFrameTemplateWithInset");
+	win:SetFrameStrata("FULLSCREEN_DIALOG")
+	win:SetToplevel(true)
+	win:SetMovable(true)
+	win:EnableMouse(true)
+	win:RegisterForDrag("LeftButton")
+	win:SetScript("OnDragStart", win.StartMoving)
+	win:SetFrameStrata("HIGH")
+	win:SetScript("OnDragStop", win.StopMovingOrSizing)
+	win:SetSize(510, 200)
+	win:SetPoint("LEFT");
+	
+	-- Create the title	
+	win.title = win.title or CreateFrame("Frame")
+	win.title:SetParent(win)
+	win.title:SetPoint("TOP", 0, 10)
+	win.title:SetSize(100, 40)
+	win.title.text = win.title.text or win.title:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	win.title.text:SetPoint("CENTER")
+	win.title.text:SetText("Version Check")
+	win.title:Show()
+
+	win:RegisterEvent("CHAT_MSG_ADDON");
+
+	local refresh_button = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+	refresh_button:SetPoint("BOTTOM", -50, 5)
+	refresh_button:SetSize(100, 30)
+	refresh_button:SetText("Refresh")
+	refresh_button:SetScript("OnClick", function(self)
+		Reunionloot_Master_Monitor_Refresh(win)
+	end)
+	refresh_button:Show()
+
+	local ping_all_button = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+	ping_all_button:SetPoint("BOTTOM", 50, 5)
+	ping_all_button:SetSize(100, 30)
+	ping_all_button:SetText("Ping All")
+	ping_all_button:SetScript("OnClick", function(self)
+		win.title.text:SetText("Version Check")
+		for _, name_label in pairs(win.slot) do
+			name_label.text:SetTextColor(1, 0, 0, 1)
+		end
+		Reunionloot_BroadcastPing()
+	end)
+	ping_all_button:Show()
+
+	win.slot = {}
+	for i = 0, 4 do
+		for j = 0, 4 do
+			local key = i..","..j
+			win.slot[key] = win.slot[key] or blank_pool:Acquire()
+			win.slot[key]:SetParent(win)
+			win.slot[key]:SetPoint("TOPLEFT", j * 100 + 5, -i * 30 - 30)
+			win.slot[key]:SetSize(100, 30)
+
+			win.slot[key].text = win.slot[key]:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+			win.slot[key].text:SetText("Nobody")		
+			win.slot[key].text:SetTextColor(1, 1, 1, 1)
+			win.slot[key].text:SetPoint("CENTER")
+			win.slot[key].text:Show()
+			win.slot[key]:Hide()
+		end
+	end
+
+	Reunionloot_Master_Monitor_Refresh(win)
+	Window.master_monitor = win
+	return win
+end
+
+function Reunionloot_Master_Monitor_Refresh(win)
+	for i = 0, 4 do
+		for j = 0, 4 do
+			local key = i..","..j
+			local name = UnitName("raid"..(i * 5 + j + 1))
+			if name ~= nil then
+				win.slot[key].text:SetText(name)
+				Window.monitor_label[name] = win.slot[key]
+				win.slot[key]:Show()
+			else
+				win.slot[key]:Hide()
+			end
+		end
+	end
+end
+
+function Reunionloot_Master_Monitor_SetItem(index)
+	Reunionloot_Monitor_Window()
+	for _, name_label in pairs(Window.master_monitor.slot) do
+		name_label.text:SetTextColor(1, 0, 0, 1)
+	end
+
+	local link, p_list = Reunionloot_Master_GetPList(index)
+	if link == nil or p_list == nil then return end
+	Window.master_monitor.title.text:SetText(link)
+	for player, _ in pairs(p_list) do
+		local name_label = Window.monitor_label[player]
+		if name_label ~= nil then
+			name_label.text:SetTextColor(0, 1, 0, 1)
+		end
+	end
+end
+
+function Reunionloot_Master_Receive_Ping(version, name)
+	name_label = Window.monitor_label[name]
+	if name_label == nil then
+		SendSystemMessage("Receive ack from "..name.." but no name_label assigned")
+		return
+	end
+	if version == REUNIONLOOT.version then
+		name_label.text:SetTextColor(0, 1, 0, 1)
+	else
+		SendSystemMessage(name.." is in old version V"..version)
+		name_label.text:SetTextColor(1, 1, 0, 1)
+	end
+end
+
 function Window:RenderSlot(slot, item_list_index, item_info)
 	slot.item_index:SetText(item_list_index)
 	slot.item_texture:SetBackdrop({bgFile = item_info.item.texture}) 
 	slot.item_link:SetText(item_info.item.link)
 	slot.current_price:SetText(item_info.current_price)
 	slot.current_winner:SetText(item_info.current_winner)
+	if item_info.bid_price ~= nil then
+		slot.input_price:SetText(item_info.bid_price)
+	end
 	if item_info.passed or item_info.status == "boughtin" or item_info.status == "deal" then
 		slot.bid_buttons.bid:Disable()
-		slot.bid_buttons.pass:Disable()
+		slot.bid_buttons.pass:Disable() 
 	else
 		slot.bid_buttons.bid:Enable()
 		slot.bid_buttons.pass:Enable()
@@ -731,6 +861,10 @@ end
 
 function Window:RefreshItemList(page_number)
 	for i = 1, REUNIONLOOT.item_per_page do
+		local index_text = Window.win.bid_frame.item_slot[i].item_index:GetText()
+		if index_text ~= nil and item_list[tonumber(index_text)] ~= nil then
+			item_list[tonumber(index_text)].bid_price = tonumber(Window.win.bid_frame.item_slot[i].input_price:GetText())
+		end
 		Window.win.bid_frame.item_slot[i].item_root:Hide()
 		Window.win.bid_frame.item_slot[i].input_price:SetText(0)
 	end
@@ -770,7 +904,8 @@ function Reunionloot_CalculateCut( )
 	Window.win.filter_frame.bonus_1.value.text:SetText(math.floor(bonus_1))
 	Window.win.filter_frame.bonus_2.value.text:SetText(math.floor(bonus_2))
 	Window.win.filter_frame.bonus_3.value.text:SetText(math.floor(bonus_3))
-	local sharable_gold = total_gold - guild_cut - bonus_1 - bonus_2 - bonus_3
+	local sharable_gold = total_gold - guild_cut - bonus_1 * REUNIONLOOT.cut_ratio.people1 
+							- bonus_2 *REUNIONLOOT.cut_ratio.people2 - bonus_3 * REUNIONLOOT.cut_ratio.people3
 	local full_share = math.floor(sharable_gold / (REUNIONLOOT.cut_ratio.full_share + 0.5 * REUNIONLOOT.cut_ratio.half_share))
 	Window.win.filter_frame.full_share.value.text:SetText(full_share)
 	Window.win.filter_frame.half_share.value.text:SetText(math.floor(full_share / 2))
@@ -799,13 +934,14 @@ function Reunionloot_DeleteAll()
 end
 
 function Reunionloot_DeleteItem(item_index)
-	item_list[item_index] = nil
+	item_list[item_index].status = "deleted"
 	Window:RefreshItemList(page_number)
 	if page_number > max_page_number then
 		page_number = max_page_number
 		Window:RefreshItemList(page_number)
 	end
 	UpdatePageButton()
+	item_list[item_index] = nil
 end
 
 function Reunionloot_PassItem(item_index)

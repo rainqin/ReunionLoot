@@ -32,10 +32,8 @@ local function CheckItemPassStatus(item_index)
 	local item_info = item_list[index]
 	local p_list_len = Reunionloot_tablelength(item_info.p_list)
 	if p_list_len == REUNIONLOOT.raid_size then
-		item_info.status = "boughtin"
 		Reunionloot_BroadCastBoughtIn(item_index)
 	elseif p_list_len == REUNIONLOOT.raid_size - 1 and item_info.current_winner ~= "No one bid" then
-		item_info.status = "deal"
 		Reunionloot_BroadCastDeal(item_index)
 	end
 end
@@ -103,9 +101,10 @@ end
 
 function Reunionloot_Master_Delete(index)
 	local index = tonumber(index)
-	item_list[index] = nil
+	item_list[index].status = "deleted"
 	Reunionloot_DeleteItem(index)
 	Reunionloot_BroadCastDeleteMessage(index)
+	item_list[index] = nil
 end
 
 function Reunionloot_Master_Start_Bidding()
@@ -113,9 +112,20 @@ function Reunionloot_Master_Start_Bidding()
 	Reunionloot_BroadCastNotifyMessage("Bidding Started!")
 end
 
-function Reunionloot_Master_End_Bidding()
+function Reunionloot_Master_Pause_Bidding()
 	bidding = false
 	Reunionloot_BroadCastNotifyMessage("Bidding Paused! Please wait.")
+end
+
+function Reunionloot_Master_End_Bidding()
+	bidding = false
+	Reunionloot_BroadCastNotifyMessage("Bidding Ended! Please wait.")
+	Reunionloot_BroadcastEndBidMessage(item_list)
+end
+
+function Reunionloot_Master_GetPList(index)
+	if item_list[index] == nil then return end
+	return item_list[index].item.link, item_list[index].p_list
 end
 
 local function OnEvent(self, event, prefix, msg, _, _, target, ...)
@@ -172,17 +182,29 @@ local function OnEvent(self, event, prefix, msg, _, _, target, ...)
 				CheckItemPassStatus(item_index)
 			end
 		elseif actions[1] == "BoughtIn" then
-			local item_index = tonumber(actions[2])
-			item_list[item_index].status = "boughtin"
-			Reunionloot_BoughtInItem(item_index)
-			SendSystemMessage(item_list[item_index].item.link.." Bought-In.")
+			for i = 2, #actions do
+				local item_index = tonumber(actions[i])
+				if item_list[item_index].status ~= "boughtin" then
+					SendSystemMessage(item_list[item_index].item.link.." Bought-In.")
+					item_list[item_index].status = "boughtin"
+					Reunionloot_BoughtInItem(item_index)
+				end
+			end
 		elseif actions[1] == "Deal" then
-			local item_index = tonumber(actions[2])
-			local item_info = item_list[item_index]
-			item_info.status = "deal"
-			Reunionloot_DealItem(item_index)
-			SendSystemMessage(item_info.item.link.." Sold to "..item_info.current_winner..
-				" at "..item_info.current_price.."g! Congratulations!")
+			for i = 2, #actions do
+				local item_index = tonumber(actions[i])
+				local item_info = item_list[item_index]
+				if item_info.status ~= "deal" then
+					SendSystemMessage(item_info.item.link.." Sold to "..item_info.current_winner..
+					" at "..item_info.current_price.."g! Congratulations!")
+					item_info.status = "deal"
+					Reunionloot_DealItem(item_index)
+				end
+			end
+		elseif actions[1] == "ConfirmPing" then
+			local version = actions[2]
+			local player = target
+			Reunionloot_Master_Receive_Ping(version, player)
 		end
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		--print("enterring the world");
@@ -197,6 +219,13 @@ function Reunionloot_Master_Window()
 	else
 		REUNIONLOOT.master_win:Show()
 	end
+end
+
+function Reunionloot_Monitor_Window()
+	if REUNIONLOOT.monitor_win == nil then
+		REUNIONLOOT.monitor_win = Reunionloot_Master_Monitor_Window()
+	end
+	REUNIONLOOT.monitor_win:Show()
 end
 
 function Reunionloot_PassItem_Master(item_index)

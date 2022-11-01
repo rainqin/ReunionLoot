@@ -1,12 +1,13 @@
 SLASH_REUNIONLOOT1 = "/reunionloot"
 SLASH_REUNIONLOOTMASTER1 = "/reunionlootmaster"
+SLASH_REUNIONLOOTMONITOR1 = "/reunionlootmonitor"
 
 REUNIONLOOT = {}
 REUNIONLOOT.prefix = "ReunionLoot"
 REUNIONLOOT.min_bid = 100
-REUNIONLOOT.version = "1.1.0"
+REUNIONLOOT.version = "1.2.0"
 REUNIONLOOT.item_per_page = 11
-REUNIONLOOT.raid_size = 1
+REUNIONLOOT.raid_size = 10
 REUNIONLOOT.send_gap = 0.5
 REUNIONLOOT.cut_ratio = {}
 REUNIONLOOT.cut_ratio.guild = 7
@@ -83,6 +84,30 @@ end
 function Reunionloot_ReportBidMessage(item_index, price)
 	local msg = "BidFromClient;"..item_index..";"..price
 	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, msg, "RAID");
+end
+
+function Reunionloot_BroadcastEndBidMessage(item_list)
+	local boughtin_msg = "BoughtIn;"
+	local deal_msg = "Deal;"
+	for index, item_info in pairs(item_list) do
+		if item_info.current_winner == "No one bid" then
+			boughtin_msg = boughtin_msg..index..";"
+		else
+			deal_msg = deal_msg..index..";"
+		end
+	end
+	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, boughtin_msg, "RAID");
+	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, deal_msg, "RAID");
+end
+
+function Reunionloot_BroadcastPing()
+	local msg = "Ping;"
+	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, msg, "RAID");
+end
+
+function Reunionloot_ClientResponsePing(name)
+	local msg = "ConfirmPing;"..REUNIONLOOT.version
+	C_ChatInfo.SendAddonMessage(REUNIONLOOT.prefix, msg, "WHISPER", name);
 end
 
 function Reunionloot_BroadCastBidMessage(item_index, price, winner)
@@ -177,4 +202,5 @@ end
 C_ChatInfo.RegisterAddonMessagePrefix(REUNIONLOOT.prefix);
 Client_Start()
 SlashCmdList["REUNIONLOOT"] = Reunionloot_Client_Window_Show;
-SlashCmdList["REUNIONLOOTMASTER"] = Reunionloot_Master_Window; 
+SlashCmdList["REUNIONLOOTMASTER"] = Reunionloot_Master_Window;
+SlashCmdList["REUNIONLOOTMONITOR"] = Reunionloot_Monitor_Window;

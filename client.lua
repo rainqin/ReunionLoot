@@ -87,25 +87,38 @@ local function OnEvent(self, event, prefix, msg, _, _, target, ...)
 			REUNIONLOOT.client_win.filter_frame.share_panel:Show()
 		elseif actions[1] == "BroadcastDelete" then
 			local index = tonumber(actions[2])
-			item_list[index] = nil
+			item_list[index].status = "deleted"
 			Reunionloot_DeleteItem(index)
+			item_list[index] = nil
 		elseif actions[1] == "BroadcastDeleteAllDeleteAll" then
 			item_list = {}
 			Reunionloot_DeleteAll()
 		elseif actions[1] == "BroadcastNotify" then
 			SendSystemMessage(actions[2])	
 		elseif actions[1] == "BoughtIn" then
-			local item_index = tonumber(actions[2])
-			item_list[item_index].status = "boughtin"
-			Reunionloot_BoughtInItem(item_index)
-			SendSystemMessage(item_list[item_index].item.link.." Bought-In.")
+			for i = 2, #actions do
+				local item_index = tonumber(actions[i])
+				if item_list[item_index].status ~= "boughtin" then
+					item_list[item_index].status = "boughtin"
+					Reunionloot_BoughtInItem(item_index)
+					SendSystemMessage(item_list[item_index].item.link.." Bought-In.")
+				end
+			end
 		elseif actions[1] == "Deal" then
-			local item_index = tonumber(actions[2])
-			local item_info = item_list[item_index]
-			item_info.status = "deal"
-			Reunionloot_DealItem(item_index)
-			SendSystemMessage(item_info.item.link.." Sold to "..item_info.current_winner..
-				" at "..item_info.current_price.."g! Congratulations!")
+			for i = 2, #actions do
+				local item_index = tonumber(actions[i])
+				local item_info = item_list[item_index]
+				if item_info.status ~= "deal" then
+					item_info.status = "deal"
+					Reunionloot_DealItem(item_index)
+					SendSystemMessage(item_info.item.link.." Sold to "..item_info.current_winner..
+						" at "..item_info.current_price.."g! Congratulations!")
+				end
+			end
+		elseif actions[1] == "Ping" then
+			if REUNIONLOOT.client_win:IsShown() then
+				Reunionloot_ClientResponsePing(target)
+			end
 		end
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		--print("enterring the world");

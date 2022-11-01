@@ -1,6 +1,6 @@
 
 function Reunionloot_FilterAll(item_info)
-	return item_info ~= nil
+	return item_info ~= nil and item_info.status ~= "deleted"
 end
 
 function Reunionloot_FilterNotPassed(item_info)
